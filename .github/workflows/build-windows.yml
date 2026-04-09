@@ -1,0 +1,43 @@
+name: Build Windows x64
+
+on:
+  push:
+    branches: [ "copilot/add-effect-filters-support" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows-x64:
+    name: Windows x64
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-go
+            mingw-w64-x86_64-obs-studio
+            mingw-w64-x86_64-libjpeg-turbo
+
+      - name: Build
+        run: |
+          CGO_ENABLED=1 \
+          CGO_CFLAGS="-I/mingw64/include/obs" \
+          CGO_LDFLAGS="-L/mingw64/lib -lobs -lobs-frontend-api" \
+          go build -buildmode=c-shared -o obs-teleport.dll .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: obs-teleport-windows-x64
+          path: obs-teleport.dll
