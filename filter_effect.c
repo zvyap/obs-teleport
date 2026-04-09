@@ -106,10 +106,10 @@ void *teleport_effect_render(void *state, obs_source_t *source,
 		uint8_t *mapped;
 		uint32_t linesize;
 		if (gs_stagesurface_map(s->stagesurface, &mapped, &linesize)) {
-			uint32_t row_bytes = width * 4;
-			uint8_t *buf = bmalloc((size_t)row_bytes * height);
+			size_t row_bytes = (size_t)width * 4;
+			uint8_t *buf = bmalloc(row_bytes * height);
 			for (uint32_t row = 0; row < height; row++) {
-				memcpy(buf + (size_t)row * row_bytes,
+				memcpy(buf + row * row_bytes,
 				       mapped + (size_t)row * linesize,
 				       row_bytes);
 			}

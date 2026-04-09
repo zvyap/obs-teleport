@@ -31,7 +31,6 @@ package main
 import "C"
 import (
 	"bytes"
-	"image"
 	"runtime/cgo"
 	"time"
 	"unsafe"
@@ -104,13 +103,11 @@ func filter_effect_video_render(data C.uintptr_t, effect *C.gs_effect_t) {
 
 	p.ToImage(width, height, C.VIDEO_FORMAT_BGRA, planes)
 	if p.Image == nil {
+		h.pool.Put(p.ImageBuffer)
 		return
 	}
 
-	switch p.Image.(type) {
-	case *image.RGBA:
-		C.video_format_get_parameters(C.VIDEO_CS_SRGB, C.VIDEO_RANGE_FULL, (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMax[0])))
-	}
+	C.video_format_get_parameters(C.VIDEO_CS_SRGB, C.VIDEO_RANGE_FULL, (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMax[0])))
 
 	h.Lock()
 	h.queue = append(h.queue, p)
