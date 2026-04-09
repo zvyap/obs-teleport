@@ -70,6 +70,12 @@ package main
 // typedef struct obs_audio_data* (*filter_audio_t)(uintptr_t data, struct obs_audio_data *frames);
 // extern struct obs_audio_data* filter_audio(uintptr_t data, struct obs_audio_data *frames);
 //
+// typedef void (*video_render_t)(uintptr_t data, gs_effect_t *effect);
+// extern char* filter_effect_get_name(uintptr_t type_data);
+// extern uintptr_t filter_effect_create(obs_data_t *settings, obs_source_t *source);
+// extern void filter_effect_destroy(uintptr_t data);
+// extern void filter_effect_video_render(uintptr_t data, gs_effect_t *effect);
+//
 // typedef void (*raw_video_t)(uintptr_t data, struct video_data *frame);
 // extern void output_raw_video(uintptr_t data, struct video_data *frame);
 //
@@ -117,9 +123,11 @@ var (
 	filter_str         = C.CString("teleport-filter")
 	filter_video_str   = C.CString("teleport-video-filter")
 	filter_audio_str   = C.CString("teleport-audio-filter")
+	filter_effect_str  = C.CString("teleport-effect-filter")
 	frontend_str       = C.CString("Teleport")
 	frontend_video_str = C.CString("Teleport (Video)")
 	frontend_audio_str = C.CString("Teleport (Audio)")
+	frontend_effect_str = C.CString("Teleport (Effect)")
 	dummy_str          = C.CString("teleport-dummy")
 
 	version = "0.0.0"
@@ -180,6 +188,19 @@ func obs_module_load() C.bool {
 		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.filter_get_defaults)),
 		update:         C.update_t(unsafe.Pointer(C.filter_update)),
 		filter_audio:   C.filter_audio_t(unsafe.Pointer(C.filter_audio)),
+	}, C.sizeof_struct_obs_source_info)
+
+	C.obs_register_source_s(&C.struct_obs_source_info{
+		id:           filter_effect_str,
+		_type:        C.OBS_SOURCE_TYPE_FILTER,
+		output_flags: C.OBS_SOURCE_VIDEO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
+		get_name:     C.get_name_t(unsafe.Pointer(C.filter_effect_get_name)),
+		create:       C.source_create_t(unsafe.Pointer(C.filter_effect_create)),
+		destroy:      C.destroy_t(unsafe.Pointer(C.filter_effect_destroy)),
+		get_properties: C.get_properties_t(unsafe.Pointer(C.filter_get_properties)),
+		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.filter_get_defaults)),
+		update:         C.update_t(unsafe.Pointer(C.filter_update)),
+		video_render: C.video_render_t(unsafe.Pointer(C.filter_effect_video_render)),
 	}, C.sizeof_struct_obs_source_info)
 
 	C.obs_register_output_s(&C.struct_obs_output_info{
