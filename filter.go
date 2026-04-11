@@ -45,10 +45,11 @@ type teleportFilter struct {
 	sync.WaitGroup
 	Announcer
 	Sender
-	pool   *Pool
-	done   chan any
-	filter *C.obs_source_t
-	queue  []*Packet
+	pool        *Pool
+	done        chan any
+	filter      *C.obs_source_t
+	queue       []*Packet
+	effectState unsafe.Pointer
 }
 
 //export filter_get_name
