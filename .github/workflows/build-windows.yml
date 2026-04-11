@@ -7,13 +7,13 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+env:
+  OBS_VERSION: "31.1.0"
+
 jobs:
   build-windows-x64:
     name: Windows x64
     runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
 
     steps:
       - name: Checkout
@@ -26,10 +26,58 @@ jobs:
           update: true
           install: >-
             mingw-w64-x86_64-go
-            mingw-w64-x86_64-obs-studio
             mingw-w64-x86_64-libjpeg-turbo
 
+      - name: Download OBS Studio portable
+        shell: pwsh
+        run: |
+          $url = "https://github.com/obsproject/obs-studio/releases/download/$env:OBS_VERSION/OBS-Studio-$env:OBS_VERSION-Windows-x64.zip"
+          Invoke-WebRequest -Uri $url -OutFile obs-studio.zip
+          Expand-Archive obs-studio.zip -DestinationPath obs-studio
+
+      - name: Checkout OBS Studio headers
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch $env:OBS_VERSION --filter=blob:none --sparse `
+            https://github.com/obsproject/obs-studio.git obs-source
+          Set-Location obs-source
+          git sparse-checkout set libobs UI/obs-frontend-api
+
+      - name: Generate OBS import libraries
+        shell: pwsh
+        run: |
+          pip install pefile -q
+
+          $script = @'
+import pefile
+
+def make_def(dll_path, def_path):
+    pe = pefile.PE(dll_path)
+    with open(def_path, "w") as f:
+        f.write("EXPORTS\n")
+        if hasattr(pe, "DIRECTORY_ENTRY_EXPORT"):
+            for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols:
+                if exp.name:
+                    f.write("  " + exp.name.decode() + "\n")
+
+make_def("obs-studio/bin/64bit/obs.dll", "obs.def")
+make_def("obs-studio/bin/64bit/obs-frontend-api.dll", "obs-frontend-api.def")
+'@
+          $script | Out-File -FilePath make_def.py -Encoding utf8
+          python make_def.py
+
+      - name: Install OBS headers and import libraries
+        shell: msys2 {0}
+        run: |
+          mkdir -p /mingw64/include/obs
+          cp -r obs-source/libobs/. /mingw64/include/obs/
+          cp obs-source/UI/obs-frontend-api/obs-frontend-api.h /mingw64/include/obs/
+
+          dlltool -D obs.dll -d obs.def -l /mingw64/lib/libobs.dll.a
+          dlltool -D obs-frontend-api.dll -d obs-frontend-api.def -l /mingw64/lib/libobs-frontend-api.dll.a
+
       - name: Build
+        shell: msys2 {0}
         run: |
           CGO_ENABLED=1 \
           CGO_CFLAGS="-I/mingw64/include/obs" \
