@@ -43,28 +43,12 @@ jobs:
           Set-Location obs-source
           git sparse-checkout set libobs UI/obs-frontend-api
 
-      - name: Generate OBS import libraries
+      - name: Generate OBS .def files
         shell: pwsh
         run: |
           pip install pefile -q
-
-          $script = @'
-import pefile
-
-def make_def(dll_path, def_path):
-    pe = pefile.PE(dll_path)
-    with open(def_path, "w") as f:
-        f.write("EXPORTS\n")
-        if hasattr(pe, "DIRECTORY_ENTRY_EXPORT"):
-            for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols:
-                if exp.name:
-                    f.write("  " + exp.name.decode() + "\n")
-
-make_def("obs-studio/bin/64bit/obs.dll", "obs.def")
-make_def("obs-studio/bin/64bit/obs-frontend-api.dll", "obs-frontend-api.def")
-'@
-          $script | Out-File -FilePath make_def.py -Encoding utf8
-          python make_def.py
+          python .github/scripts/make_def.py obs-studio/bin/64bit/obs.dll obs.def
+          python .github/scripts/make_def.py obs-studio/bin/64bit/obs-frontend-api.dll obs-frontend-api.def
 
       - name: Install OBS headers and import libraries
         shell: msys2 {0}
